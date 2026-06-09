@@ -1,0 +1,11 @@
+services:
+  app:
+    image: charty_image
+    pull_policy: never
+    container_name: charty
+    ports:
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./src:/app/src
+      - ./docs:/app/docs
