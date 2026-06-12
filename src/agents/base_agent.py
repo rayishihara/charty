@@ -30,7 +30,7 @@ class BaseAgent(ABC):
     def _generate(
         self,
         tokenized_prompt: dict[str, Tensor]
-    ) -> str:
+    ) -> str:       
         input_length = tokenized_prompt["input_ids"].shape[-1]
         response = self.model.generate(
             **tokenized_prompt,

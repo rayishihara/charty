@@ -1,7 +1,12 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import os
+import time
+import shutil
+import mlflow
 
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.agents.base_agent import BaseAgent
 from src.agents.config import AnalystConfig
+
 
 class Analyst(BaseAgent):
     def __init__(
@@ -29,7 +34,37 @@ class Analyst(BaseAgent):
         elif getattr(self.model, "_hf_peft_config_loaded", False):
             self.model.disable_adapters()  # Clear adapters, if at all used
 
-        return self._generate(self._tokenize(prompt))
+        with mlflow.start_run(run_name="analyst_inference", nested=True):
+            run_id = mlflow.active_run().info.run_id
+
+            mlflow.log_param("user_message_preview", message[:200])
+
+            os.makedirs("/app/temp", exist_ok=True)
+            prompt_filepath = f"/app/temp/prompt_{run_id}.txt"
+            with open(prompt_filepath, "w") as f:
+                f.write(message)
+            mlflow.log_artifact(prompt_filepath)
+
+            start = time.time()
+            response = self._generate(self._tokenize(prompt))
+            latency = time.time() - start
+
+            mlflow.log_param("response_preview", response[:200])
+            
+            mlflow.log_metric("latency_seconds", latency)
+            mlflow.log_metric("prompt_length_chars", len(message))
+            mlflow.log_metric("response_length_chars", len(response))
+
+            response_filepath = f"/app/temp/response_{run_id}.txt"
+            with open(response_filepath, "w") as f:
+                f.write(response)
+            mlflow.log_artifact(response_filepath)
+
+            # Clean up temp files
+            shutil.rmtree("/app/temp")
+
+        return response
+        
 
     def fine_tune(self):
         ...
